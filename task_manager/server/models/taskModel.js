@@ -45,7 +45,15 @@ const taskSchema = new Schema(
     assets: [String],
     links: [String],
     team: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    groups: [{ type: Schema.Types.ObjectId, ref: "Group" }],
     isTrashed: { type: Boolean, default: false },
+    tags: [String],
+    access: {
+      type: String,
+      enum: ["private", "group", "public"],
+      default: "private",
+    },
+    completed: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

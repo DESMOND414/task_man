@@ -10,6 +10,7 @@ import {
 } from "react-icons/md";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useLocation } from "react-router-dom";
+import { FaUsers } from "react-icons/fa";
 import { setOpenSidebar } from "../redux/slices/authSlice";
 import { IoCheckmarkDoneOutline } from "react-icons/io5";
 
@@ -38,6 +39,11 @@ const linkData = [
     label: "To Do",
     link: "todo/todo",
     icon: <MdOutlinePendingActions />,
+  },
+  {
+    label: "Groups",
+    link: "groups",
+    icon: <FaUsers />,
   },
   {
     label: "Team",

@@ -105,6 +105,19 @@ const AddUser = ({ open, setOpen, userData }) => {
               error={errors.role ? errors.role.message : ""}
             />
           </div>
+          {!userData && (
+            <Textbox
+              placeholder='Password'
+              type='password'
+              name='password'
+              label='Password'
+              className='w-full rounded'
+              register={register("password", {
+                required: "Password is required!",
+              })}
+              error={errors.password ? errors.password.message : ""}
+            />
+          )}
 
           {isLoading || isUpdating ? (
             <div className='py-5'>

@@ -16,6 +16,7 @@ import {
   formatDate,
 } from "../../utils/index.js";
 import UserInfo from "../UserInfo.jsx";
+import { useUpdateTaskMutation } from "../../redux/slices/api/taskApiSlice.js";
 import { AddSubTask, TaskAssets, TaskColor, TaskDialog } from "./index";
 
 const ICONS = {
@@ -24,17 +25,41 @@ const ICONS = {
   low: <MdKeyboardArrowDown />,
 };
 
+const Checkbox = ({ checked, onChange }) => {
+  return (
+    <input
+      type='checkbox'
+      checked={checked}
+      onChange={onChange}
+      className='form-checkbox h-5 w-5 rounded text-blue-500 focus:ring-blue-500'
+    />
+  );
+};
+
 const TaskCard = ({ task }) => {
   const { user } = useSelector((state) => state.auth);
   const [open, setOpen] = useState(false);
 
   return (
-    <>
-      <div className='w-full h-fit bg-white dark:bg-[#1f1f1f] shadow-md p-4 rounded'>
-        <div className='w-full flex justify-between'>
+    <div className='w-full h-fit bg-white dark:bg-[#1f1f1f] shadow-md p-4 rounded'>
+      <div className='w-full flex justify-between items-center'>
+        <div className='flex items-center'>
+          <Checkbox
+            checked={task?.completed}
+            onChange={async () => {
+              try {
+                await useUpdateTaskMutation({
+                  _id: task?._id,
+                  completed: !task?.completed,
+                });
+              } catch (error) {
+                console.log(error);
+              }
+            }}
+          />
           <div
             className={clsx(
-              "flex flex-1 gap-1 items-center text-sm font-medium",
+              "ml-2 flex flex-1 gap-1 items-center text-sm font-medium",
               PRIOTITYSTYELS[task?.priority]
             )}
           >
@@ -115,10 +140,10 @@ const TaskCard = ({ task }) => {
             <span>ADD SUBTASK</span>
           </button>
         </div>
-      </div>
+      </div>{" "}
 
-      <AddSubTask open={open} setOpen={setOpen} id={task._id} />
-    </>
+      <AddSubTask open={open} setOpen={setOpen} id={task?._id} />
+    </div>
   );
 };
 

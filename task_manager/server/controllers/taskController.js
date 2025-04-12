@@ -7,7 +7,7 @@ const createTask = asyncHandler(async (req, res) => {
   try {
     const { userId } = req.user;
     const { title, team, stage, date, priority, assets, links, description } =
-      req.body;
+      req.body || {};
 
     //alert users of the task
     let text = "New task has been assigned to you";
@@ -16,7 +16,10 @@ const createTask = asyncHandler(async (req, res) => {
     }
 
     text =
-      text +
+      text + 
+      ` The task priority is set a ${priority} priority, so check and act accordingly. The task date is ${new Date(date).toDateString()}. Thank you!!!`;
+      
+    text = text +
       ` The task priority is set a ${priority} priority, so check and act accordingly. The task date is ${new Date(
         date
       ).toDateString()}. Thank you!!!`;
@@ -43,6 +46,27 @@ const createTask = asyncHandler(async (req, res) => {
       links: newLinks || [],
       description,
     });
+
+    if (!title || !team || !stage || !date || !priority || !description ){
+       return res.status(400).json({
+        status: false,
+        message: "Please provide all required fields: title, team, stage, date, priority, description",
+      });
+    } else if (!title || !team || !stage || !date || !priority || !description ) {
+      return res.status(400).json({
+        status: false,
+        message: "Please provide all required fields: title, team, stage, date, priority, description",
+      });
+    }
+
+    const { groups } = req.body;
+    const { tags } = req.body;
+    const { access } = req.body;
+
+    if (tags) task.tags = tags;
+    if (access) task.access = access;
+
+    if (groups) task.groups = groups;
 
     await Notice.create({
       team,
@@ -129,9 +153,16 @@ const duplicateTask = asyncHandler(async (req, res) => {
 });
 
 const updateTask = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { title, date, team, stage, priority, assets, links, description } =
-    req.body;
+  const { id } = req.params; 
+  const { title, date, team, stage, priority, assets, links, description, groups } =
+    req.body || {};
+
+  const { tags } = req.body;
+  const { access } = req.body;
+  if (!title || !team || !stage || !date || !priority || !description ){
+    return res.status(400).json({ status: false, message: "Please provide all required fields" });
+  }
+
 
   try {
     const task = await Task.findById(id);
@@ -150,12 +181,15 @@ const updateTask = asyncHandler(async (req, res) => {
     task.team = team;
     task.links = newLinks;
     task.description = description;
+    if (groups) task.groups = groups;
+    if (tags) task.tags = tags;
+    if (access) task.access = access;
 
     await task.save();
 
     res
-      .status(200)
-      .json({ status: true, message: "Task duplicated successfully." });
+      .status(200) 
+      .json({ status: true, message: "Task updated successfully." });
   } catch (error) {
     return res.status(400).json({ status: false, message: error.message });
   }
@@ -239,40 +273,66 @@ const getTasks = asyncHandler(async (req, res) => {
   const { userId, isAdmin } = req.user;
   const { stage, isTrashed, search } = req.query;
 
-  let query = { isTrashed: isTrashed ? true : false };
+  try {
+    const user = await User.findById(userId).populate('teams');
+    const userGroups = user.teams.map(team => team._id);
 
-  if (!isAdmin) {
-    query.team = { $all: [userId] };
+    // Base query
+    let query = {};
+
+    // Filter for trashed
+    if (typeof isTrashed !== "undefined") {
+      query.isTrashed = isTrashed === "true";
+    }
+
+    // Access control
+    if (!isAdmin) {
+      query.$or = [
+        { access: "public" },
+        { access: "private", team: userId },
+        { access: "group", groups: { $in: userGroups } },
+        { access: { $exists: false }, team: userId },
+      ];
+    }
+
+    // Stage filter
+    if (stage) {
+      query.stage = stage;
+    }
+
+    // Search filter
+    if (search) {
+      query.$and = [
+        ...(query.$and || []),
+        {
+          $or: [
+            { title: { $regex: search, $options: "i" } },
+            { stage: { $regex: search, $options: "i" } },
+            { priority: { $regex: search, $options: "i" } },
+          ],
+        },
+      ];
+    }
+
+    const tasks = await Task.find(query)
+      .populate({
+        path: "team",
+        select: "name title email",
+      })
+      .populate("groups", "name")
+      .sort({ _id: -1 });
+
+    res.status(200).json({
+      status: true,
+      tasks,
+    });
+
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    res.status(500).json({ status: false, message: error.message });
   }
-  if (stage) {
-    query.stage = stage;
-  }
-
-  if (search) {
-    const searchQuery = {
-      $or: [
-        { title: { $regex: search, $options: "i" } },
-        { stage: { $regex: search, $options: "i" } },
-        { priority: { $regex: search, $options: "i" } },
-      ],
-    };
-    query = { ...query, ...searchQuery };
-  }
-
-  let queryResult = Task.find(query)
-    .populate({
-      path: "team",
-      select: "name title email",
-    })
-    .sort({ _id: -1 });
-
-  const tasks = await queryResult;
-
-  res.status(200).json({
-    status: true,
-    tasks,
-  });
 });
+
 
 const getTask = asyncHandler(async (req, res) => {
   try {
