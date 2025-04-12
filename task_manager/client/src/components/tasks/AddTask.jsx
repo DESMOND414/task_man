@@ -14,6 +14,7 @@ import {
   useCreateTaskMutation,
   useUpdateTaskMutation,
 } from "../../redux/slices/api/taskApiSlice";
+import { useGetGroupsQuery } from "../../redux/slices/api/groupApiSlice";
 import { dateFormatter } from "../../utils";
 import { app } from "../../utils/firebase";
 import Button from "../Button";
@@ -71,6 +72,7 @@ const AddTask = ({ open, setOpen, task }) => {
     links: "",
   };
   const {
+    watch,
     register,
     handleSubmit,
     formState: { errors },
@@ -92,6 +94,7 @@ const AddTask = ({ open, setOpen, task }) => {
     for (const file of assets) {
       setUploading(true);
       try {
+        // add groups
         await uploadFile(file);
       } catch (error) {
         console.error("Error uploading file:", error.message);
@@ -106,11 +109,15 @@ const AddTask = ({ open, setOpen, task }) => {
         ...data,
         assets: [...URLS, ...uploadedFileURLs],
         team,
-        stage,
+        stage,        
         priority,
+        tags: watch("tags"),
+        access: watch("access")
       };
-      console.log(data, newData);
+
+
       const res = task?._id
+      
         ? await updateTask({ ...newData, _id: task._id }).unwrap()
         : await createTask(newData).unwrap();
 
@@ -129,9 +136,12 @@ const AddTask = ({ open, setOpen, task }) => {
     setAssets(e.target.files);
   };
 
+  const { data: groups } = useGetGroupsQuery();
+  const groupOption = groups?.map((group) => ({ label: group.name, value: group._id }));
+
   return (
     <>
-      <ModalWrapper open={open} setOpen={setOpen}>
+      <ModalWrapper open={open} setOpen={setOpen}>        
         <form onSubmit={handleSubmit(handleOnSubmit)}>
           <Dialog.Title
             as='h2'
@@ -152,6 +162,40 @@ const AddTask = ({ open, setOpen, task }) => {
               })}
               error={errors.title ? errors.title.message : ""}
             />
+            <Textbox
+              placeholder='Date'
+              type='date'
+              name='date'
+              label='Task Date'
+              className='w-full rounded'
+              register={register("date", {
+                required: "Date is required!",
+              })}
+              error={errors.date ? errors.date.message : ""}
+            />
+             <SelectList
+              isMulti
+              options={groupOption}
+              label='Groups'
+              placeholder='Select groups'
+              name='groups'
+              register={register("groups")}              
+            />
+             <Textbox
+              placeholder='Tags'
+              label='Tags'
+              name='tags'
+            />
+             <SelectList
+              isMulti
+              options={groupOption}
+              label='Groups'
+              placeholder='Select groups'
+              name='groups'
+              register={register("groups", {
+                required: "Groups is required!",
+              })}
+            />
             <UserList setTeam={setTeam} team={team} />
             <div className='flex gap-4'>
               <SelectList
@@ -167,20 +211,15 @@ const AddTask = ({ open, setOpen, task }) => {
                 setSelected={setPriority}
               />
             </div>
-            <div className='flex gap-4'>
-              <div className='w-full'>
-                <Textbox
-                  placeholder='Date'
-                  type='date'
-                  name='date'
-                  label='Task Date'
-                  className='w-full rounded'
-                  register={register("date", {
-                    required: "Date is required!",
-                  })}
-                  error={errors.date ? errors.date.message : ""}
-                />
-              </div>
+             <SelectList
+                label='Access'
+                lists={["private", "group", "public"]}
+                register={register("access")}
+              />
+            
+            
+            <div className='flex gap-4'>              
+              
               <div className='w-full flex items-center justify-center mt-4'>
                 <label
                   className='flex items-center gap-1 text-base text-ascent-2 hover:text-ascent-1 cursor-pointer my-4'

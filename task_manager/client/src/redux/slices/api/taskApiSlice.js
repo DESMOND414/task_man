@@ -1,5 +1,6 @@
 import { TASKS_URL } from "../../../utils/contants";
 import { apiSlice } from "../apiSlice";
+import { groupApiSlice } from "./groupApiSlice";
 
 export const postApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
@@ -105,6 +106,15 @@ export const postApiSlice = apiSlice.injectEndpoints({
         credentials: "include",
       }),
     }),
+
+    updateTaskStatus: builder.mutation({
+      query: (data) => ({
+        url: `${TASKS_URL}/update/${data._id}`,
+        method: "PUT",
+        body: data,
+        credentials: "include",
+      }),
+    }),
   }),
 });
 
@@ -121,4 +131,6 @@ export const {
   useGetDasboardStatsQuery,
   useChangeTaskStageMutation,
   useChangeSubTaskStatusMutation,
+  useGetGroupsQuery,
+  useUpdateTaskStatusMutation,
 } = postApiSlice;

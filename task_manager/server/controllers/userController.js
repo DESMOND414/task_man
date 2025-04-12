@@ -1,6 +1,7 @@
 import asyncHandler from "express-async-handler";
 import Notice from "../models/notis.js";
 import User from "../models/userModel.js";
+import bcrypt from "bcryptjs";
 import createJWT from "../utils/index.js";
 
 // POST request - login user
@@ -8,38 +9,43 @@ const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ email });
-
   if (!user) {
     return res
       .status(401)
       .json({ status: false, message: "Invalid email or password." });
   }
-
   if (!user?.isActive) {
     return res.status(401).json({
       status: false,
       message: "User account has been deactivated, contact the administrator",
     });
   }
-
-  const isMatch = await user.matchPassword(password);
-
-  if (user && isMatch) {
-    createJWT(res, user._id);
-
-    user.password = undefined;
-
-    res.status(200).json(user);
-  } else {
+  const isPasswordMatch = await bcrypt.compare(password, user.password);
+  if (!isPasswordMatch) {
     return res
       .status(401)
       .json({ status: false, message: "Invalid email or password" });
+  } else {
+    createJWT(res, user._id); // Generate token
+    user.password = undefined; // Exclude password from response
+    return res.status(200).json(user);
   }
 });
 
 // POST - Register a new user
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, isAdmin, role, title } = req.body;
+  const { name, email, password, role, title } = req.body;
+
+  if (!name || !email || !password || !role || !title) {
+    return res.status(400).json({
+      status: false,
+      message: "Please provide name, email, password, role, and title",
+    });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({status: false, message: "Password must be at least 6 characters"})
+  }
+
 
   const userExists = await User.findOne({ email });
 
@@ -49,21 +55,36 @@ const registerUser = asyncHandler(async (req, res) => {
       .json({ status: false, message: "Email address already exists" });
   }
 
+  if (!password) {
+    return res
+      .status(400)
+      .json({ status: false, message: "Password is required" });
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
   const user = await User.create({
     name,
     email,
-    password,
-    isAdmin,
+    password: hashedPassword,
+    isActive: true,
+    tasks: [],
+    teams: [],
     role,
     title,
   });
-
+  
   if (user) {
-    isAdmin ? createJWT(res, user._id) : null;
-
-    user.password = undefined;
-
-    res.status(201).json(user);
+    const userResponse = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      isActive: user.isActive,
+      role: user.role,
+      title: user.title,
+    };
+    res.status(201).json(userResponse);
   } else {
     return res
       .status(400)
